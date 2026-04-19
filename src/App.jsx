@@ -838,28 +838,35 @@ function AISection({ theme, user }) {
     "Upcoming IPL matches",
   ];
 
+  const getSmartReply = (text) => {
+    const t = text.toLowerCase();
+    const name = user?.name ? `, ${user.name}` : "";
+    if (t.includes("movie") || t.includes("film") || t.includes("cinema"))
+      return `Great choice${name}! Right now Dune: Messiah at PVR IMAX and Phantom Hearts at Cinepolis are trending. Dune is getting a 9.1 rating — highly recommended for sci-fi fans. Want me to check showtimes near you?`;
+    if (t.includes("concert") || t.includes("music") || t.includes("live"))
+      return `There are some amazing shows coming up${name}! Arijit Singh Live at JLN Stadium on May 10 is nearly sold out (rated 9.8), and Nucleya Bass Camp at Pragati Maidan on Apr 30 is perfect for EDM lovers. Grab tickets soon!`;
+    if (t.includes("sport") || t.includes("cricket") || t.includes("ipl") || t.includes("football") || t.includes("match"))
+      return `Big matches ahead${name}! IPL: CSK vs MI at Wankhede Stadium on Apr 24 is the hottest ticket in town. BWF India Open at Siri Fort on May 12 is also a great pick for badminton fans. Which sport are you into?`;
+    if (t.includes("tech") || t.includes("conference") || t.includes("startup") || t.includes("ai"))
+      return `Exciting tech events this season${name}! Google I/O India at HITEX on May 14 is free and rated 9.7 — a must-attend for developers. Startup India 2026 at Bharat Mandapam on May 22 is great for founders. Interested in any specific tech domain?`;
+    if (t.includes("food") || t.includes("eat") || t.includes("restaurant") || t.includes("festival"))
+      return `Foodies rejoice${name}! Delhi Food Carnival at JN Park on Apr 26 is free entry and packed with street food. Wine & Cheese Evening at The Leela Palace on May 3 is perfect for a premium experience. What's your vibe — casual or fine dining?`;
+    if (t.includes("free") || t.includes("budget") || t.includes("cheap"))
+      return `Plenty of free events${name}! Google I/O India (May 14), Delhi Food Carnival (Apr 26), and Vegan Fest India (May 9) are all free entry. Great way to explore without spending a rupee!`;
+    if (t.includes("weekend") || t.includes("this week") || t.includes("nearby"))
+      return `This weekend looks packed${name}! IPL CSK vs MI on Apr 24, Delhi Food Carnival on Apr 26, and Nucleya Bass Camp on Apr 30 are all happening soon. Which category interests you most?`;
+    if (t.includes("hello") || t.includes("hi") || t.includes("hey"))
+      return `Hey${name}! I'm your NexEvent AI assistant. I can help you find movies, concerts, sports events, tech conferences, and food festivals across India. What are you in the mood for today?`;
+    return `I'd love to help you find the perfect event${name}! I cover movies, concerts, sports, tech conferences, and food festivals across India. Try asking something like "concerts this weekend" or "free events near me" to get started.`;
+  };
+
   const sendMessage = async (text) => {
     if (!text.trim()) return;
     setMessages((m) => [...m, { role: "user", text }]);
     setInput("");
     setLoading(true);
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: `You are NexEvent AI, a smart event discovery assistant. Help users find movies, concerts, sports events, tech conferences, food festivals and more in India. Be friendly, concise (2-4 sentences). Current user: ${user?.name || "Guest"}.`,
-          messages: [{ role: "user", content: text }],
-        }),
-      });
-      const data = await response.json();
-      const reply = data.content?.[0]?.text || "I can help you discover amazing events! What are you in the mood for?";
-      setMessages((m) => [...m, { role: "assistant", text: reply }]);
-    } catch {
-      setMessages((m) => [...m, { role: "assistant", text: "I can help you find amazing events! What type of experience are you looking for — movies, concerts, sports, or something else?" }]);
-    }
+    await new Promise((r) => setTimeout(r, 700));
+    setMessages((m) => [...m, { role: "assistant", text: getSmartReply(text) }]);
     setLoading(false);
   };
 
@@ -971,34 +978,36 @@ function AIAssistant({ theme, user }) {
     "Tech conferences in May",
   ];
 
+  const getSmartReply = (text) => {
+    const t = text.toLowerCase();
+    const name = user?.name ? `, ${user.name}` : "";
+    if (t.includes("movie") || t.includes("film") || t.includes("cinema"))
+      return `Great choice${name}! Right now Dune: Messiah at PVR IMAX and Phantom Hearts at Cinepolis are trending. Dune is getting a 9.1 rating — highly recommended for sci-fi fans. Want me to check showtimes near you?`;
+    if (t.includes("concert") || t.includes("music") || t.includes("live"))
+      return `There are some amazing shows coming up${name}! Arijit Singh Live at JLN Stadium on May 10 is nearly sold out (rated 9.8), and Nucleya Bass Camp at Pragati Maidan on Apr 30 is perfect for EDM lovers. Grab tickets soon!`;
+    if (t.includes("sport") || t.includes("cricket") || t.includes("ipl") || t.includes("football") || t.includes("match"))
+      return `Big matches ahead${name}! IPL: CSK vs MI at Wankhede Stadium on Apr 24 is the hottest ticket in town. BWF India Open at Siri Fort on May 12 is also a great pick for badminton fans. Which sport are you into?`;
+    if (t.includes("tech") || t.includes("conference") || t.includes("startup") || t.includes("ai"))
+      return `Exciting tech events this season${name}! Google I/O India at HITEX on May 14 is free and rated 9.7 — a must-attend for developers. Startup India 2026 at Bharat Mandapam on May 22 is great for founders. Interested in any specific tech domain?`;
+    if (t.includes("food") || t.includes("eat") || t.includes("restaurant") || t.includes("festival"))
+      return `Foodies rejoice${name}! Delhi Food Carnival at JN Park on Apr 26 is free entry and packed with street food. Wine & Cheese Evening at The Leela Palace on May 3 is perfect for a premium experience. What's your vibe — casual or fine dining?`;
+    if (t.includes("free") || t.includes("budget") || t.includes("cheap"))
+      return `Plenty of free events${name}! Google I/O India (May 14), Delhi Food Carnival (Apr 26), and Vegan Fest India (May 9) are all free entry. Great way to explore without spending a rupee!`;
+    if (t.includes("weekend") || t.includes("this week") || t.includes("nearby"))
+      return `This weekend looks packed${name}! IPL CSK vs MI on Apr 24, Delhi Food Carnival on Apr 26, and Nucleya Bass Camp on Apr 30 are all happening soon. Which category interests you most?`;
+    if (t.includes("hello") || t.includes("hi") || t.includes("hey"))
+      return `Hey${name}! I'm your NexEvent AI assistant. I can help you find movies, concerts, sports events, tech conferences, and food festivals across India. What are you in the mood for today?`;
+    return `I'd love to help you find the perfect event${name}! I cover movies, concerts, sports, tech conferences, and food festivals across India. Try asking something like "concerts this weekend" or "free events near me" to get started.`;
+  };
+
   const sendMessage = async (text) => {
     if (!text.trim()) return;
     const userMsg = { role: "user", text, ts: new Date() };
     setMessages((m) => [...m, userMsg]);
     setInput("");
     setLoading(true);
-
-    // Call Claude API
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: `You are NexEvent AI, a smart event discovery assistant. You help users find movies, concerts, sports events, tech conferences, food festivals and more. You're knowledgeable about events in India (especially Delhi, Mumbai, Bangalore). Be friendly, concise (2-4 sentences), and suggest specific event types or ask clarifying questions. Current user: ${user?.name || "Guest"}.`,
-          messages: [
-            ...messages.filter(m => m.role !== "assistant" || messages.indexOf(m) > 0).map(m => ({ role: m.role, content: m.text })),
-            { role: "user", content: text }
-          ],
-        }),
-      });
-      const data = await response.json();
-      const reply = data.content?.[0]?.text || "I can help you discover amazing events! What are you in the mood for?";
-      setMessages((m) => [...m, { role: "assistant", text: reply, ts: new Date() }]);
-    } catch {
-      setMessages((m) => [...m, { role: "assistant", text: "I can help you find amazing events! What type of experience are you looking for — movies, concerts, sports, or something else?", ts: new Date() }]);
-    }
+    await new Promise((r) => setTimeout(r, 700));
+    setMessages((m) => [...m, { role: "assistant", text: getSmartReply(text), ts: new Date() }]);
     setLoading(false);
   };
 

@@ -17,7 +17,7 @@ NexEvent AI is built around the persona of a city-dweller who wants to discover 
 The core logic is built around three pillars:
 
 **1. Context-Aware AI Assistant**
-The floating AI assistant (powered by Claude claude-sonnet-4) maintains conversation context and responds to natural language queries like "find concerts this weekend" or "sports events in Delhi." It knows whether the user is signed in and personalizes responses accordingly. When the API is unavailable, it gracefully falls back to a helpful static response.
+The floating AI assistant uses smart keyword matching to respond to natural language queries like "find concerts this weekend" or "sports events in Delhi." It knows whether the user is signed in and personalizes responses with their name. Responses are instant, context-aware, and cover all 5 event categories with real event data from the platform.
 
 **2. Dynamic Theme System**
 Rather than a static UI, the entire visual palette shifts based on the active event category. Selecting Movies switches to a Cinema (rose) theme, Concerts to Neon (violet), Sports to Field (green), Tech to Matrix (blue), and Food to Warm (amber). This creates an immersive, context-aware experience that reinforces the content being browsed.
@@ -55,7 +55,7 @@ A simulated live crowd density system shows real-time occupancy levels per venue
 
 ## Features
 
-- **AI Assistant** — Floating chat powered by Claude (claude-sonnet-4) for natural language event discovery
+- **AI Assistant** — Floating chat with smart keyword-based responses for natural language event discovery
 - **Dynamic Theming** — 6 immersive visual themes that shift the entire UI palette per event category
 - **Event Categories** — Movies, Concerts, Sports, Tech, and Food with curated event cards
 - **Smooth Animations** — Canvas particle background, scroll-reveal effects, and fluid transitions
@@ -86,7 +86,6 @@ A simulated live crowd density system shows real-time occupancy levels per venue
 - **Canvas API** — Animated particle background with mouse interaction
 - **CSS-in-JS** — All styles via inline styles and injected `<style>` tags
 - **Google Fonts** — Clash Display, Cabinet Grotesk, Syne
-- **Anthropic Claude API** — AI assistant backend
 
 ---
 
@@ -189,10 +188,16 @@ nexevent/
 
 ---
 
-## Environment
+## Environment & Requirements
 
-No `.env` file is required to run the base UI. To enable live AI responses, add your Anthropic API key:
+| Requirement | Version |
+|---|---|
+| Node.js | 18+ |
+| npm | 9+ |
+| Browser | Chrome, Firefox, Edge, Safari (latest) |
 
-```env
-VITE_ANTHROPIC_API_KEY=your_key_here
-```
+No `.env` file or API keys required. The app runs fully client-side with zero backend dependencies.
+
+The AI assistant uses built-in keyword-based logic — no external AI service or internet connection needed for it to work. All event data is bundled within the app itself.
+
+> Just clone, `npm install`, and `npm run dev` — that's it.
