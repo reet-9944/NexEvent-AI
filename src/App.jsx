@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { getGoogleCalendarUrl, getGoogleMapsUrl, getPlacesSuggestions, formatDateForCalendar } from "./utils/googleServices";
+import { registerUser, signInUser, oauthSignIn, logoutUser, getCurrentUser, updateUserProfile } from "./utils/auth";
 
-// ─── GOOGLE FONTS ───────────────────────────────────────────────────────────
 const FontLink = () => (
   <style>{`
     @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@300;400;500;700;800&family=Syne:wght@400;600;700;800&display=swap');
   `}</style>
 );
 
-// ─── THEME DEFINITIONS ──────────────────────────────────────────────────────
 const THEMES = {
   home: {
     bg: "#0d0e12",
@@ -77,7 +77,6 @@ const THEMES = {
   },
 };
 
-// ─── THREE.JS CANVAS BACKGROUND ─────────────────────────────────────────────
 function ThreeBackground({ theme }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
@@ -132,7 +131,6 @@ function ThreeBackground({ theme }) {
         if (p.x < 0 || p.x > width) p.vx *= -1;
         if (p.y < 0 || p.y > height) p.vy *= -1;
 
-        // Mouse repulsion
         const dx = p.x - mouse.x;
         const dy = p.y - mouse.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -146,7 +144,6 @@ function ThreeBackground({ theme }) {
         ctx.fillStyle = `rgba(${rgb},${p.alpha})`;
         ctx.fill();
 
-        // Connect nearby particles
         particles.slice(i + 1).forEach((q) => {
           const ex = p.x - q.x;
           const ey = p.y - q.y;
@@ -175,6 +172,8 @@ function ThreeBackground({ theme }) {
   return (
     <canvas
       ref={canvasRef}
+      aria-hidden="true"
+      role="presentation"
       style={{
         position: "fixed",
         top: 0,
@@ -189,7 +188,6 @@ function ThreeBackground({ theme }) {
   );
 }
 
-// ─── GLASSMORPHIC CARD ───────────────────────────────────────────────────────
 function GlassCard({ children, style = {}, className = "", onClick }) {
   return (
     <div
@@ -209,7 +207,6 @@ function GlassCard({ children, style = {}, className = "", onClick }) {
   );
 }
 
-// ─── ANIMATED TYPING ────────────────────────────────────────────────────────
 function TypeWriter({ words, speed = 80 }) {
   const [displayed, setDisplayed] = useState("");
   const [wIdx, setWIdx] = useState(0);
@@ -252,7 +249,6 @@ function TypeWriter({ words, speed = 80 }) {
   );
 }
 
-// ─── SCROLL REVEAL HOOK ──────────────────────────────────────────────────────
 function useScrollReveal() {
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -267,8 +263,7 @@ function useScrollReveal() {
   return [ref, visible];
 }
 
-// ─── NAVBAR ──────────────────────────────────────────────────────────────────
-function Navbar({ theme, onSignIn, onSignUp, onNav, user, onLogout }) {
+function Navbar({ theme, onSignIn, onSignUp, onNav, user, onLogout, onProfile }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -278,7 +273,7 @@ function Navbar({ theme, onSignIn, onSignUp, onNav, user, onLogout }) {
     return () => window.removeEventListener("scroll", h);
   }, []);
 
-  const navLinks = ["Events", "AI Assistant", "Pricing", "About"];
+  const navLinks = ["Events", "Pricing", "About"];
 
   return (
     <>
@@ -303,8 +298,27 @@ function Navbar({ theme, onSignIn, onSignUp, onNav, user, onLogout }) {
         .card-hover:hover { transform: translateY(-6px); box-shadow: 0 24px 60px ${theme.accentGlow}; }
         .theme-tag { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: ${theme.accentGlow}; color: ${theme.accent}; border: 1px solid ${theme.accent}44; }
         ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: ${theme.bg}; } ::-webkit-scrollbar-thumb { background: ${theme.accent}; border-radius: 3px; }
+        /* ── Mobile Responsive ── */
+        .nav-links-desktop { display: flex; gap: 32px; align-items: center; }
+        .nav-auth-desktop { display: flex; gap: 12px; align-items: center; }
+        .hamburger { display: none; background: none; border: none; cursor: pointer; padding: 8px; color: ${theme.text}; }
+        .mobile-menu { display: none; }
+        @media (max-width: 768px) {
+          .nav-links-desktop { display: none !important; }
+          .nav-auth-desktop { display: none !important; }
+          .hamburger { display: flex !important; flex-direction: column; gap: 5px; }
+          .hamburger span { display: block; width: 22px; height: 2px; background: ${theme.text}; border-radius: 2px; transition: all 0.3s; }
+          .mobile-menu { display: flex; flex-direction: column; position: fixed; top: 70px; left: 0; right: 0; background: ${theme.surface}f0; backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 20px 24px; gap: 16px; z-index: 999; animation: slideDown 0.25s ease; }
+          .mobile-menu .nav-link { font-size: 17px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+          .mobile-menu .btn-primary, .mobile-menu .btn-ghost { width: 100%; padding: 14px; border-radius: 12px; font-size: 15px; text-align: center; }
+        }
+        @media (max-width: 480px) {
+          .theme-tag { display: none; }
+        }
       `}</style>
       <nav
+        role="navigation"
+        aria-label="Main navigation"
         style={{
           position: "fixed",
           top: 0,
@@ -322,10 +336,14 @@ function Navbar({ theme, onSignIn, onSignUp, onNav, user, onLogout }) {
           borderBottom: scrolled ? `1px solid rgba(255,255,255,0.06)` : "none",
         }}
       >
-        {/* Logo */}
+
         <div
           style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
           onClick={() => onNav("home")}
+          role="button"
+          tabIndex={0}
+          aria-label="Go to homepage"
+          onKeyDown={(e) => e.key === "Enter" && onNav("home")}
         >
           <div
             style={{
@@ -335,46 +353,83 @@ function Navbar({ theme, onSignIn, onSignUp, onNav, user, onLogout }) {
               fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: 16, color: "#fff",
               boxShadow: `0 4px 16px ${theme.accentGlow}`,
             }}
+            aria-hidden="true"
           >N</div>
           <span style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: 20, color: theme.text }}>
             Nex<span style={{ color: theme.accent }}>Event</span>
           </span>
-          <span style={{ fontSize: 10, fontFamily: "'Cabinet Grotesk', sans-serif", color: theme.accent, fontWeight: 700, letterSpacing: "0.1em", border: `1px solid ${theme.accent}`, borderRadius: 4, padding: "1px 5px" }}>AI</span>
+          <span style={{ fontSize: 10, fontFamily: "'Cabinet Grotesk', sans-serif", color: theme.accent, fontWeight: 700, letterSpacing: "0.1em", border: `1px solid ${theme.accent}`, borderRadius: 4, padding: "1px 5px" }} aria-label="AI powered">AI</span>
         </div>
 
-        {/* Nav Links */}
-        <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
+
+        <div className="nav-links-desktop" role="menubar" aria-label="Site navigation">
           {navLinks.map((l) => (
             <span key={l} className="nav-link" style={{ color: theme.muted, fontSize: 15 }}
-              onClick={() => onNav(l.toLowerCase().replace(" ", "-"))}>
+              role="menuitem"
+              tabIndex={0}
+              aria-label={`Navigate to ${l}`}
+              onClick={() => onNav(l.toLowerCase().replace(" ", "-"))}
+              onKeyDown={(e) => e.key === "Enter" && onNav(l.toLowerCase().replace(" ", "-"))}>
               {l}
             </span>
           ))}
         </div>
 
-        {/* Auth Buttons */}
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <span className="theme-tag">{theme.name}</span>
+
+        <div className="nav-auth-desktop">
           {user ? (
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}88)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, color: "#fff", fontSize: 14 }}>
+              <div onClick={onProfile}
+                style={{ width: 36, height: 36, borderRadius: "50%", background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}88)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, color: "#fff", fontSize: 14, cursor: "pointer", boxShadow: `0 2px 12px ${theme.accentGlow}` }}
+                aria-label={`View profile for ${user.name}`}
+                role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && onProfile()}>
                 {user.name?.[0]?.toUpperCase()}
               </div>
-              <button className="btn-ghost" style={{ padding: "8px 18px", borderRadius: 10, fontSize: 14 }} onClick={onLogout}>Logout</button>
+              <button className="btn-ghost" style={{ padding: "8px 18px", borderRadius: 10, fontSize: 14 }} onClick={onLogout} aria-label="Logout">Logout</button>
             </div>
           ) : (
             <>
-              <button className="btn-ghost" style={{ padding: "9px 20px", borderRadius: 10, fontSize: 14 }} onClick={onSignIn}>Sign In</button>
-              <button className="btn-primary" style={{ padding: "9px 20px", borderRadius: 10, fontSize: 14 }} onClick={onSignUp}>Get Started</button>
+              <button className="btn-ghost" style={{ padding: "9px 20px", borderRadius: 10, fontSize: 14 }} onClick={onSignIn} aria-label="Sign in to your account">Sign In</button>
+              <button className="btn-primary" style={{ padding: "9px 20px", borderRadius: 10, fontSize: 14 }} onClick={onSignUp} aria-label="Get started with NexEvent AI">Get Started</button>
             </>
           )}
         </div>
+
+
+        <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)}
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu">
+          <span /><span /><span />
+        </button>
       </nav>
+
+
+      {menuOpen && (
+        <div id="mobile-menu" className="mobile-menu" role="menu" aria-label="Mobile navigation">
+          {navLinks.map((l) => (
+            <span key={l} className="nav-link" style={{ color: theme.muted }}
+              role="menuitem"
+              tabIndex={0}
+              onClick={() => { onNav(l.toLowerCase().replace(" ", "-")); setMenuOpen(false); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { onNav(l.toLowerCase().replace(" ", "-")); setMenuOpen(false); } }}>
+              {l}
+            </span>
+          ))}
+          {user ? (
+            <button className="btn-ghost" style={{ padding: "12px", borderRadius: 12, fontSize: 15 }} onClick={() => { onLogout(); setMenuOpen(false); }} aria-label="Logout">Logout</button>
+          ) : (
+            <>
+              <button className="btn-ghost" style={{ padding: "12px", borderRadius: 12, fontSize: 15 }} onClick={() => { onSignIn(); setMenuOpen(false); }} aria-label="Sign in">Sign In</button>
+              <button className="btn-primary" style={{ padding: "12px", borderRadius: 12, fontSize: 15 }} onClick={() => { onSignUp(); setMenuOpen(false); }} aria-label="Get started">Get Started</button>
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 }
 
-// ─── AUTH MODAL ──────────────────────────────────────────────────────────────
 function AuthModal({ theme, mode, onClose, onAuth, setMode }) {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -386,38 +441,43 @@ function AuthModal({ theme, mode, onClose, onAuth, setMode }) {
     if (mode === "signup" && !form.name) { setError("Name is required"); return; }
     setLoading(true);
     setError("");
-    await new Promise((r) => setTimeout(r, 1200));
+    try {
+      await new Promise((r) => setTimeout(r, 600));
+      const user = mode === "signup"
+        ? registerUser({ name: form.name, email: form.email, password: form.password })
+        : signInUser({ email: form.email, password: form.password });
+      onAuth(user);
+    } catch (e) {
+      setError(e.message);
+    }
     setLoading(false);
-    onAuth({ name: form.name || form.email.split("@")[0], email: form.email, provider: "email" });
   };
 
   const handleOAuth = async (provider) => {
     setOauthLoading(provider);
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 900));
     setOauthLoading("");
-    const names = { google: "Alex Johnson", github: "Dev User", discord: "NexUser" };
-    onAuth({ name: names[provider], email: `user@${provider}.com`, provider });
+    const mockData = {
+      google: { name: "Google User", email: "googleuser@gmail.com" },
+      github: { name: "GitHub User", email: "githubuser@github.com" },
+      discord: { name: "Discord User", email: "discorduser@discord.com" },
+    };
+    try {
+      const user = oauthSignIn(provider, mockData[provider]);
+      onAuth(user);
+    } catch (e) {
+      setError(e.message);
+    }
   };
 
   return (
     <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 9999,
-        background: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        animation: "fadeIn 0.2s",
-      }}
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 0.2s", padding: "20px" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <GlassCard style={{
-        width: 440, padding: 40, position: "relative",
-        animation: "slideDown 0.3s cubic-bezier(0.16,1,0.3,1)",
-        border: `1px solid ${theme.accent}33`,
-      }}>
-        {/* Close */}
-        <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", color: theme.muted, fontSize: 18 }}>×</button>
+      <GlassCard style={{ width: "min(440px, 100%)", padding: "clamp(24px, 5vw, 40px)", position: "relative", animation: "slideDown 0.3s cubic-bezier(0.16,1,0.3,1)", border: `1px solid ${theme.accent}33`, maxHeight: "90vh", overflowY: "auto" }}>
+        <button onClick={onClose} aria-label="Close" style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", color: theme.muted, fontSize: 18 }}>×</button>
 
-        {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div style={{ width: 52, height: 52, borderRadius: 14, background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}88)`, margin: "0 auto 12px", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: 22, color: "#fff", boxShadow: `0 8px 24px ${theme.accentGlow}` }}>N</div>
           <h2 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: 26, color: theme.text, margin: 0 }}>
@@ -428,64 +488,64 @@ function AuthModal({ theme, mode, onClose, onAuth, setMode }) {
           </p>
         </div>
 
-        {/* OAuth */}
+
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           {[
             { id: "google", label: "Google", icon: "G", color: "#ea4335" },
-            { id: "github", label: "GitHub", icon: "⌥", color: "#333" },
+            { id: "github", label: "GitHub", icon: "⌥", color: "#888" },
             { id: "discord", label: "Discord", icon: "D", color: "#5865f2" },
           ].map((p) => (
-            <button key={p.id} onClick={() => handleOAuth(p.id)}
-              style={{ flex: 1, padding: "11px 0", borderRadius: 12, border: `1px solid rgba(255,255,255,0.1)`, background: "rgba(255,255,255,0.04)", color: theme.text, cursor: "pointer", fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.2s" }}
+            <button key={p.id} onClick={() => handleOAuth(p.id)} aria-label={`Sign in with ${p.label}`}
+              style={{ flex: 1, padding: "11px 0", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: theme.text, cursor: "pointer", fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.2s" }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.borderColor = p.color; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
             >
-              {oauthLoading === p.id ? (
-                <div style={{ width: 14, height: 14, border: `2px solid ${p.color}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-              ) : (
-                <span style={{ fontWeight: 800, color: p.color }}>{p.icon}</span>
-              )}
+              {oauthLoading === p.id
+                ? <div style={{ width: 14, height: 14, border: `2px solid ${p.color}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                : <span style={{ fontWeight: 800, color: p.color }}>{p.icon}</span>}
               {p.label}
             </button>
           ))}
         </div>
 
-        {/* Divider */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
           <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
           <span style={{ color: theme.muted, fontSize: 12, fontFamily: "'Cabinet Grotesk', sans-serif" }}>or continue with email</span>
           <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
         </div>
 
-        {/* Form */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {mode === "signup" && (
             <input placeholder="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              aria-label="Full name"
               style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${error && !form.name ? theme.accent : "rgba(255,255,255,0.1)"}`, borderRadius: 12, padding: "14px 16px", color: theme.text, fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 15, outline: "none" }}
               onFocus={(e) => e.target.style.borderColor = theme.accent}
               onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
             />
           )}
           <input placeholder="Email address" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+            aria-label="Email address"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", color: theme.text, fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 15, outline: "none" }}
             onFocus={(e) => e.target.style.borderColor = theme.accent}
             onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
           />
           <input placeholder="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+            aria-label="Password"
+            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", color: theme.text, fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 15, outline: "none" }}
             onFocus={(e) => e.target.style.borderColor = theme.accent}
             onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
           />
-          {error && <p style={{ color: theme.accent, fontSize: 13, margin: 0, fontFamily: "'Cabinet Grotesk', sans-serif" }}>{error}</p>}
-          <button onClick={handleSubmit} disabled={loading}
-            style={{ padding: "15px", borderRadius: 12, background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}cc)`, border: "none", color: "#fff", fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 16, cursor: "pointer", boxShadow: `0 8px 24px ${theme.accentGlow}`, transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          {error && <p role="alert" style={{ color: "#e63946", fontSize: 13, margin: 0, fontFamily: "'Cabinet Grotesk', sans-serif" }}>{error}</p>}
+          <button onClick={handleSubmit} disabled={loading} aria-label={mode === "signin" ? "Sign in" : "Create account"}
+            style={{ padding: "15px", borderRadius: 12, background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}cc)`, border: "none", color: "#fff", fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 16, cursor: loading ? "not-allowed" : "pointer", boxShadow: `0 8px 24px ${theme.accentGlow}`, transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
             {loading ? <div style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : (mode === "signin" ? "Sign In" : "Create Account")}
           </button>
         </div>
 
         <p style={{ textAlign: "center", marginTop: 18, color: theme.muted, fontSize: 14, fontFamily: "'Cabinet Grotesk', sans-serif" }}>
           {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
-          <span style={{ color: theme.accent, cursor: "pointer", fontWeight: 700 }} onClick={() => setMode(mode === "signin" ? "signup" : "signin")}>
+          <span style={{ color: theme.accent, cursor: "pointer", fontWeight: 700 }} onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(""); setForm({ name: "", email: "", password: "" }); }}>
             {mode === "signin" ? "Sign Up" : "Sign In"}
           </span>
         </p>
@@ -494,7 +554,126 @@ function AuthModal({ theme, mode, onClose, onAuth, setMode }) {
   );
 }
 
-// ─── LANDING HERO ────────────────────────────────────────────────────────────
+function ProfileModal({ theme, user, onClose, onUpdate, onLogout }) {
+  const [form, setForm] = useState({
+    name: user.name || "",
+    email: user.email || "",
+    location: user.preferences?.location || "",
+    favoriteCategories: user.preferences?.favoriteCategories || [],
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const categories = ["Movies", "Concerts", "Sports", "Tech", "Food"];
+
+  const toggleCategory = (cat) => {
+    setForm((f) => ({
+      ...f,
+      favoriteCategories: f.favoriteCategories.includes(cat)
+        ? f.favoriteCategories.filter((c) => c !== cat)
+        : [...f.favoriteCategories, cat],
+    }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await new Promise((r) => setTimeout(r, 500));
+    const updated = updateUserProfile(user.id, {
+      name: form.name,
+      preferences: { ...user.preferences, location: form.location, favoriteCategories: form.favoriteCategories },
+    });
+    onUpdate(updated);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", animation: "fadeIn 0.2s" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <GlassCard style={{ width: "min(480px, 100%)", padding: "clamp(24px, 5vw, 36px)", position: "relative", border: `1px solid ${theme.accent}33`, maxHeight: "90vh", overflowY: "auto", animation: "slideDown 0.3s cubic-bezier(0.16,1,0.3,1)" }}>
+        <button onClick={onClose} aria-label="Close profile" style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", color: theme.muted, fontSize: 18 }}>×</button>
+
+
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}88)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: 26, color: "#fff", boxShadow: `0 4px 20px ${theme.accentGlow}`, flexShrink: 0 }}>
+            {form.name?.[0]?.toUpperCase() || "?"}
+          </div>
+          <div>
+            <h2 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: 22, color: theme.text, margin: 0 }}>{form.name}</h2>
+            <p style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 14, color: theme.muted, margin: "4px 0 0" }}>{user.email}</p>
+            <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 12, color: theme.accent, background: `${theme.accent}18`, border: `1px solid ${theme.accent}33`, borderRadius: 6, padding: "2px 8px" }}>
+              {user.provider === "email" ? "Email Account" : `${user.provider.charAt(0).toUpperCase() + user.provider.slice(1)} Account`}
+            </span>
+          </div>
+        </div>
+
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, color: theme.muted, display: "block", marginBottom: 6 }}>Display Name</label>
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              aria-label="Display name"
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 16px", color: theme.text, fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 15, outline: "none", boxSizing: "border-box" }}
+              onFocus={(e) => e.target.style.borderColor = theme.accent}
+              onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, color: theme.muted, display: "block", marginBottom: 6 }}>Email</label>
+            <input value={user.email} disabled aria-label="Email (read only)"
+              style={{ width: "100%", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "12px 16px", color: theme.muted, fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 15, outline: "none", boxSizing: "border-box", cursor: "not-allowed" }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, color: theme.muted, display: "block", marginBottom: 6 }}>Your City</label>
+            <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}
+              placeholder="e.g. Delhi, Mumbai, Bangalore"
+              aria-label="Your city"
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 16px", color: theme.text, fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 15, outline: "none", boxSizing: "border-box" }}
+              onFocus={(e) => e.target.style.borderColor = theme.accent}
+              onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, color: theme.muted, display: "block", marginBottom: 10 }}>Favourite Categories</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {categories.map((cat) => {
+                const active = form.favoriteCategories.includes(cat);
+                return (
+                  <button key={cat} onClick={() => toggleCategory(cat)}
+                    aria-pressed={active}
+                    style={{ padding: "7px 16px", borderRadius: 999, border: `1px solid ${active ? theme.accent : "rgba(255,255,255,0.12)"}`, background: active ? `${theme.accent}22` : "transparent", color: active ? theme.accent : theme.muted, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.2s" }}>
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+            <button onClick={handleSave} disabled={saving}
+              style={{ flex: 1, padding: "13px", borderRadius: 12, background: saved ? "#00d68f" : `linear-gradient(135deg, ${theme.accent}, ${theme.accent}cc)`, border: "none", color: "#fff", fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 15, cursor: saving ? "not-allowed" : "pointer", transition: "all 0.3s", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              {saving ? <div style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : saved ? "✓ Saved!" : "Save Changes"}
+            </button>
+            <button onClick={() => { onLogout(); onClose(); }}
+              style={{ padding: "13px 20px", borderRadius: 12, background: "rgba(230,57,70,0.12)", border: "1px solid rgba(230,57,70,0.3)", color: "#e63946", fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 15, cursor: "pointer", transition: "all 0.2s" }}>
+              Logout
+            </button>
+          </div>
+        </div>
+
+        <p style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 12, color: theme.muted, textAlign: "center", marginTop: 16 }}>
+          Member since {new Date(user.createdAt).toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+        </p>
+      </GlassCard>
+    </div>
+  );
+}
+
 function LandingPage({ theme, onExplore, onSignUp }) {
   const stats = [
     { value: "2.4M+", label: "Events Discovered" },
@@ -503,18 +682,18 @@ function LandingPage({ theme, onExplore, onSignUp }) {
   ];
 
   return (
-    <section style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "100px 32px 60px", position: "relative", zIndex: 1 }}>
-      {/* Glow orb */}
+    <section style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(80px, 10vw, 100px) clamp(16px, 4vw, 32px) 60px", position: "relative", zIndex: 1 }}>
+
       <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: 500, height: 500, borderRadius: "50%", background: `radial-gradient(circle, ${theme.accentGlow} 0%, transparent 70%)`, filter: "blur(60px)", pointerEvents: "none" }} />
 
       <div style={{ textAlign: "center", maxWidth: 900 }}>
-        {/* Badge */}
+
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: `${theme.accentGlow}`, border: `1px solid ${theme.accent}44`, borderRadius: 999, padding: "8px 18px", marginBottom: 32, animation: "fadeIn 0.6s 0.2s both" }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: theme.accent, animation: "pulse 2s infinite" }} />
           <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, fontWeight: 600, color: theme.accent, letterSpacing: "0.06em" }}>AI-POWERED EVENT DISCOVERY</span>
         </div>
 
-        {/* Headline */}
+
         <h1 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: "clamp(44px, 7vw, 88px)", lineHeight: 1.05, color: theme.text, margin: "0 0 24px", animation: "fadeUp 0.8s 0.3s both" }}>
           Find Events That<br />
           <span style={{ color: theme.accent, position: "relative" }}>
@@ -526,7 +705,7 @@ function LandingPage({ theme, onExplore, onSignUp }) {
           NexEvent AI learns your preferences to surface the perfect movies, concerts, sports events, and experiences — all in one intelligent platform.
         </p>
 
-        {/* CTAs */}
+
         <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", animation: "fadeUp 0.8s 0.7s both" }}>
           <button onClick={onExplore}
             style={{ padding: "16px 36px", borderRadius: 14, background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}dd)`, border: "none", color: "#fff", fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 17, cursor: "pointer", boxShadow: `0 8px 32px ${theme.accentGlow}`, transition: "all 0.3s" }}
@@ -544,7 +723,7 @@ function LandingPage({ theme, onExplore, onSignUp }) {
           </button>
         </div>
 
-        {/* Stats */}
+
         <div style={{ display: "flex", gap: 48, justifyContent: "center", marginTop: 72, flexWrap: "wrap", animation: "fadeUp 0.8s 0.9s both" }}>
           {stats.map((s) => (
             <div key={s.label} style={{ textAlign: "center" }}>
@@ -560,7 +739,6 @@ function LandingPage({ theme, onExplore, onSignUp }) {
   );
 }
 
-// ─── ABOUT SECTION ───────────────────────────────────────────────────────────
 function AboutSection({ theme }) {
   const [ref, visible] = useScrollReveal();
   const features = [
@@ -573,7 +751,7 @@ function AboutSection({ theme }) {
   ];
 
   return (
-    <section ref={ref} style={{ padding: "100px 60px", position: "relative", zIndex: 1 }}>
+    <section ref={ref} style={{ padding: "clamp(60px, 8vw, 100px) clamp(20px, 5vw, 60px)", position: "relative", zIndex: 1 }}>
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
         <div className={`reveal ${visible ? "visible" : ""}`} style={{ textAlign: "center", marginBottom: 64 }}>
           <div className="theme-tag" style={{ marginBottom: 16 }}>Why NexEvent AI</div>
@@ -600,7 +778,6 @@ function AboutSection({ theme }) {
   );
 }
 
-// ─── EVENTS SECTION ───────────────────────────────────────────────────────────
 const EVENTS_DATA = {
   movies: [
     { id: 1, title: "Dune: Messiah", date: "Apr 25, 2026", venue: "PVR IMAX, Connaught Place", price: "₹450", rating: 9.1, img: "🎬", tag: "Sci-Fi Epic" },
@@ -636,6 +813,11 @@ const EVENTS_DATA = {
 
 function EventCard({ event, theme, onClick }) {
   const [hovered, setHovered] = useState(false);
+
+  const calendarUrl = () => getGoogleCalendarUrl({ title: event.title, date: formatDateForCalendar(event.date) || event.date, venue: event.venue, description: `${event.tag} at ${event.venue}` });
+
+  const mapsUrl = getGoogleMapsUrl(event.venue);
+
   return (
     <GlassCard className="card-hover"
       style={{ padding: 0, overflow: "hidden", cursor: "pointer", border: hovered ? `1px solid ${theme.accent}55` : "1px solid rgba(255,255,255,0.07)" }}
@@ -643,7 +825,7 @@ function EventCard({ event, theme, onClick }) {
       onMouseLeave={() => setHovered(false)}
       onClick={onClick}
     >
-      {/* Hero area */}
+
       <div style={{ height: 120, background: `linear-gradient(135deg, ${theme.accent}22, ${theme.accent}08)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, position: "relative" }}>
         {event.img}
         <div style={{ position: "absolute", top: 12, right: 12, background: `${theme.accent}22`, border: `1px solid ${theme.accent}44`, borderRadius: 999, padding: "3px 10px", fontSize: 11, color: theme.accent, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700 }}>{event.tag}</div>
@@ -652,7 +834,13 @@ function EventCard({ event, theme, onClick }) {
         <h3 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 600, fontSize: 18, color: theme.text, margin: "0 0 6px" }}>{event.title}</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, color: theme.muted }}>📅 {event.date}</div>
-          <div style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, color: theme.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>📍 {event.venue}</div>
+
+          <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, color: theme.accent, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: "none" }}
+            aria-label={`View ${event.venue} on Google Maps`}>
+            📍 {event.venue} ↗
+          </a>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
           <span style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: 18, color: theme.accent }}>{event.price}</span>
@@ -661,7 +849,14 @@ function EventCard({ event, theme, onClick }) {
             <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 14, color: theme.text }}>{event.rating}</span>
           </div>
         </div>
-        <button style={{ width: "100%", marginTop: 12, padding: "10px 0", borderRadius: 10, background: hovered ? theme.accent : "rgba(255,255,255,0.06)", border: `1px solid ${hovered ? theme.accent : "rgba(255,255,255,0.1)"}`, color: hovered ? "#fff" : theme.muted, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer", transition: "all 0.25s" }}>
+
+        <a href={calendarUrl()} target="_blank" rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+          style={{ display: "block", width: "100%", marginTop: 8, padding: "8px 0", borderRadius: 10, background: "rgba(66,133,244,0.12)", border: "1px solid rgba(66,133,244,0.3)", color: "#4285f4", fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer", transition: "all 0.25s", textAlign: "center", textDecoration: "none" }}
+          aria-label={`Add ${event.title} to Google Calendar`}>
+          + Add to Google Calendar
+        </a>
+        <button style={{ width: "100%", marginTop: 8, padding: "10px 0", borderRadius: 10, background: hovered ? theme.accent : "rgba(255,255,255,0.06)", border: `1px solid ${hovered ? theme.accent : "rgba(255,255,255,0.1)"}`, color: hovered ? "#fff" : theme.muted, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer", transition: "all 0.25s" }}>
           Book Now →
         </button>
       </div>
@@ -682,7 +877,7 @@ function EventsSection({ theme, activeTheme, setActiveTheme, instant }) {
   const events = EVENTS_DATA[activeTheme] || EVENTS_DATA.movies;
 
   return (
-    <section ref={ref} style={{ padding: "100px 60px", position: "relative", zIndex: 1 }}>
+    <section ref={ref} style={{ padding: "clamp(60px, 8vw, 100px) clamp(20px, 5vw, 60px)", position: "relative", zIndex: 1 }}>
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
         <div className={`reveal ${show ? "visible" : ""}`} style={{ textAlign: "center", marginBottom: 48 }}>
           <div className="theme-tag" style={{ marginBottom: 16 }}>Discover</div>
@@ -691,7 +886,7 @@ function EventsSection({ theme, activeTheme, setActiveTheme, instant }) {
           </h2>
         </div>
 
-        {/* Category Tabs */}
+
         <div className={`reveal ${show ? "visible" : ""}`} style={{ display: "flex", gap: 10, marginBottom: 40, flexWrap: "wrap", justifyContent: "center" }}>
           {categories.map((c) => (
             <button key={c.key}
@@ -712,7 +907,7 @@ function EventsSection({ theme, activeTheme, setActiveTheme, instant }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: 20 }}>
           {events.map((e, i) => (
             <div key={e.id} className={`reveal ${show ? "visible" : ""}`} style={{ transitionDelay: instant ? "0s" : `${i * 0.07}s` }}>
-              <EventCard event={e} theme={theme} onClick={() => {}} />
+              <EventCard event={e} theme={theme} onClick={() => { }} />
             </div>
           ))}
         </div>
@@ -721,7 +916,6 @@ function EventsSection({ theme, activeTheme, setActiveTheme, instant }) {
   );
 }
 
-// ─── SUBSCRIPTION SECTION ────────────────────────────────────────────────────
 function SubscriptionSection({ theme, onSignUp }) {
   const [ref, visible] = useScrollReveal();
   const [annual, setAnnual] = useState(false);
@@ -757,14 +951,14 @@ function SubscriptionSection({ theme, onSignUp }) {
   ];
 
   return (
-    <section ref={ref} style={{ padding: "100px 60px", position: "relative", zIndex: 1 }}>
+    <section ref={ref} style={{ padding: "clamp(60px, 8vw, 100px) clamp(20px, 5vw, 60px)", position: "relative", zIndex: 1 }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div className={`reveal ${visible ? "visible" : ""}`} style={{ textAlign: "center", marginBottom: 52 }}>
           <div className="theme-tag" style={{ marginBottom: 16 }}>Pricing</div>
           <h2 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: "clamp(30px, 4vw, 50px)", color: theme.text, margin: "0 0 16px" }}>
             Invest in <span style={{ color: theme.accent }}>Experiences</span>
           </h2>
-          {/* Toggle */}
+
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 24 }}>
             <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 15, color: annual ? theme.muted : theme.text }}>Monthly</span>
             <div onClick={() => setAnnual(!annual)}
@@ -819,7 +1013,6 @@ function SubscriptionSection({ theme, onSignUp }) {
   );
 }
 
-// ─── AI SECTION (inline page section) ───────────────────────────────────────
 function AISection({ theme, user }) {
   const [ref, visible] = useScrollReveal();
   const [messages, setMessages] = useState([
@@ -855,6 +1048,13 @@ function AISection({ theme, user }) {
       return `Plenty of free events${name}! Google I/O India (May 14), Delhi Food Carnival (Apr 26), and Vegan Fest India (May 9) are all free entry. Great way to explore without spending a rupee!`;
     if (t.includes("weekend") || t.includes("this week") || t.includes("nearby"))
       return `This weekend looks packed${name}! IPL CSK vs MI on Apr 24, Delhi Food Carnival on Apr 26, and Nucleya Bass Camp on Apr 30 are all happening soon. Which category interests you most?`;
+    if (t.includes("venue") || t.includes("where") || t.includes("location")) {
+      const suggestions = getPlacesSuggestions(text.split(" ").find(w => w.length > 3) || "Delhi");
+      const venueList = suggestions.slice(0, 3).join(", ") || "PVR IMAX, Wankhede Stadium, Pragati Maidan";
+      return `Here are some popular venues${name}: ${venueList}. Click any event card to get directions via Google Maps!`;
+    }
+    if (t.includes("calendar") || t.includes("remind") || t.includes("schedule"))
+      return `You can add any event to Google Calendar directly from the event cards${name}! Just click the "+ Add to Google Calendar" button on any event.`;
     if (t.includes("hello") || t.includes("hi") || t.includes("hey"))
       return `Hey${name}! I'm your NexEvent AI assistant. I can help you find movies, concerts, sports events, tech conferences, and food festivals across India. What are you in the mood for today?`;
     return `I'd love to help you find the perfect event${name}! I cover movies, concerts, sports, tech conferences, and food festivals across India. Try asking something like "concerts this weekend" or "free events near me" to get started.`;
@@ -873,7 +1073,7 @@ function AISection({ theme, user }) {
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
   return (
-    <section ref={ref} style={{ padding: "100px 60px", position: "relative", zIndex: 1 }}>
+    <section ref={ref} style={{ padding: "clamp(60px, 8vw, 100px) clamp(20px, 5vw, 60px)", position: "relative", zIndex: 1 }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div className={`reveal ${visible ? "visible" : ""}`} style={{ textAlign: "center", marginBottom: 52 }}>
           <div className="theme-tag" style={{ marginBottom: 16 }}>AI Assistant</div>
@@ -887,7 +1087,7 @@ function AISection({ theme, user }) {
 
         <div className={`reveal ${visible ? "visible" : ""}`}>
           <GlassCard style={{ maxWidth: 780, margin: "0 auto", overflow: "hidden", border: `1px solid ${theme.accent}33` }}>
-            {/* Chat header */}
+
             <div style={{ padding: "18px 24px", background: `linear-gradient(135deg, ${theme.accent}18, ${theme.accent}06)`, borderBottom: `1px solid rgba(255,255,255,0.06)`, display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}99)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🤖</div>
               <div>
@@ -899,7 +1099,7 @@ function AISection({ theme, user }) {
               </div>
             </div>
 
-            {/* Messages */}
+
             <div style={{ height: 340, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
               {messages.map((m, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 10, alignItems: "flex-end" }}>
@@ -927,7 +1127,7 @@ function AISection({ theme, user }) {
               <div ref={endRef} />
             </div>
 
-            {/* Suggestions */}
+
             {messages.length <= 2 && (
               <div style={{ padding: "0 24px 14px", display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {SUGGESTIONS.map((s) => (
@@ -940,11 +1140,12 @@ function AISection({ theme, user }) {
               </div>
             )}
 
-            {/* Input */}
+
             <div style={{ padding: "14px 20px", borderTop: `1px solid rgba(255,255,255,0.06)`, display: "flex", gap: 10 }}>
               <input value={input} onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
                 placeholder="Ask me anything about events..."
+                aria-label="Ask AI assistant about events"
                 style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: `1px solid rgba(255,255,255,0.1)`, borderRadius: 12, padding: "12px 16px", color: theme.text, fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 14, outline: "none" }}
                 onFocus={(e) => e.target.style.borderColor = theme.accent}
                 onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
@@ -961,7 +1162,6 @@ function AISection({ theme, user }) {
   );
 }
 
-// ─── AI ASSISTANT (floating widget) ──────────────────────────────────────────
 function AIAssistant({ theme, user }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -995,6 +1195,13 @@ function AIAssistant({ theme, user }) {
       return `Plenty of free events${name}! Google I/O India (May 14), Delhi Food Carnival (Apr 26), and Vegan Fest India (May 9) are all free entry. Great way to explore without spending a rupee!`;
     if (t.includes("weekend") || t.includes("this week") || t.includes("nearby"))
       return `This weekend looks packed${name}! IPL CSK vs MI on Apr 24, Delhi Food Carnival on Apr 26, and Nucleya Bass Camp on Apr 30 are all happening soon. Which category interests you most?`;
+    if (t.includes("venue") || t.includes("where") || t.includes("location")) {
+      const suggestions = getPlacesSuggestions(text.split(" ").find(w => w.length > 3) || "Delhi");
+      const venueList = suggestions.slice(0, 3).join(", ") || "PVR IMAX, Wankhede Stadium, Pragati Maidan";
+      return `Here are some popular venues${name}: ${venueList}. Click any event card to get directions via Google Maps!`;
+    }
+    if (t.includes("calendar") || t.includes("remind") || t.includes("schedule"))
+      return `You can add any event to Google Calendar directly from the event cards${name}! Just click the "+ Add to Google Calendar" button on any event.`;
     if (t.includes("hello") || t.includes("hi") || t.includes("hey"))
       return `Hey${name}! I'm your NexEvent AI assistant. I can help you find movies, concerts, sports events, tech conferences, and food festivals across India. What are you in the mood for today?`;
     return `I'd love to help you find the perfect event${name}! I cover movies, concerts, sports, tech conferences, and food festivals across India. Try asking something like "concerts this weekend" or "free events near me" to get started.`;
@@ -1015,10 +1222,10 @@ function AIAssistant({ theme, user }) {
 
   return (
     <>
-      {/* Chat window */}
+
       {open && (
-        <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 900, width: 380, height: 540, display: "flex", flexDirection: "column", borderRadius: 20, overflow: "hidden", border: `1px solid ${theme.accent}44`, boxShadow: `0 24px 80px rgba(0,0,0,0.6)`, animation: "slideDown 0.3s cubic-bezier(0.16,1,0.3,1)" }}>
-          {/* Header */}
+        <div style={{ position: "fixed", bottom: 28, right: 28, left: "auto", zIndex: 900, width: "min(380px, calc(100vw - 32px))", height: "min(540px, calc(100vh - 100px))", display: "flex", flexDirection: "column", borderRadius: 20, overflow: "hidden", border: `1px solid ${theme.accent}44`, boxShadow: `0 24px 80px rgba(0,0,0,0.6)`, animation: "slideDown 0.3s cubic-bezier(0.16,1,0.3,1)" }}>
+
           <div style={{ padding: "16px 20px", background: `linear-gradient(135deg, ${theme.accent}22, ${theme.accent}08)`, backdropFilter: "blur(20px)", borderBottom: `1px solid ${theme.accent}22`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: theme.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🤖</div>
@@ -1030,7 +1237,7 @@ function AIAssistant({ theme, user }) {
             <button onClick={() => setOpen(false)} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, width: 30, height: 30, cursor: "pointer", color: theme.muted, fontSize: 16 }}>×</button>
           </div>
 
-          {/* Messages */}
+
           <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 12, background: `${theme.bg}ee`, backdropFilter: "blur(20px)" }}>
             {messages.map((m, i) => (
               <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
@@ -1053,7 +1260,7 @@ function AIAssistant({ theme, user }) {
             <div ref={endRef} />
           </div>
 
-          {/* Quick suggestions */}
+
           {messages.length <= 2 && (
             <div style={{ padding: "8px 12px", background: `${theme.bg}ee`, display: "flex", gap: 6, flexWrap: "wrap" }}>
               {SUGGESTIONS.map((s) => (
@@ -1065,7 +1272,7 @@ function AIAssistant({ theme, user }) {
             </div>
           )}
 
-          {/* Input */}
+
           <div style={{ padding: "12px 16px", background: `${theme.surface}ee`, backdropFilter: "blur(20px)", borderTop: `1px solid rgba(255,255,255,0.06)`, display: "flex", gap: 8 }}>
             <input value={input} onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
@@ -1079,11 +1286,30 @@ function AIAssistant({ theme, user }) {
           </div>
         </div>
       )}
+
+
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label={open ? "Close AI Assistant" : "Open AI Assistant"}
+        style={{
+          position: "fixed", bottom: 28, right: 28, zIndex: 901,
+          width: 56, height: 56, borderRadius: "50%",
+          background: `linear-gradient(135deg, ${theme.accent}, ${theme.accent}cc)`,
+          border: "none", cursor: "pointer",
+          boxShadow: `0 8px 32px ${theme.accentGlow}, 0 0 0 4px ${theme.accent}22`,
+          display: open ? "none" : "flex",
+          alignItems: "center", justifyContent: "center",
+          fontSize: 24, transition: "transform 0.2s",
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.1)"}
+        onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+      >
+        🤖
+      </button>
     </>
   );
 }
 
-// ─── CROWD INTELLIGENCE SECTION ─────────────────────────────────────────────
 const CROWD_VENUES = {
   movie: {
     label: "Movie", icon: "🎬", sub: "Cinema",
@@ -1150,7 +1376,7 @@ function CrowdBar({ pct, accent }) {
   const label = pct < 35 ? "LOW" : pct < 65 ? "MED" : "HIGH";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <div style={{ width: 120, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+      <div style={{ width: "min(120px, 30vw)", height: 4, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
         <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 2, transition: "width 1.8s ease" }} />
       </div>
       <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{pct}%</span>
@@ -1184,7 +1410,6 @@ function CrowdIntelligence({ theme, activeThemeKey }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [now, setNow] = useState(new Date());
 
-  // Map active theme to venue key
   const venueKey = useMemo(() => {
     if (["concerts"].includes(activeThemeKey)) return "concert";
     if (["sports"].includes(activeThemeKey)) return "stadium";
@@ -1214,8 +1439,8 @@ function CrowdIntelligence({ theme, activeThemeKey }) {
       pct < 35
         ? `Conditions are great — head over now!`
         : pct < 65
-        ? `Moderate crowd at ${zone}. Best to wait 5–10 mins.`
-        : `High crowd at ${zone}. Consider waiting 15–20 mins or use alternate entry.`;
+          ? `Moderate crowd at ${zone}. Best to wait 5–10 mins.`
+          : `High crowd at ${zone}. Consider waiting 15–20 mins or use alternate entry.`;
     setAiResult(msg);
     setAiLoading(false);
   };
@@ -1223,10 +1448,10 @@ function CrowdIntelligence({ theme, activeThemeKey }) {
   const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   return (
-    <section ref={ref} style={{ padding: "80px 60px", position: "relative", zIndex: 1 }}>
+    <section ref={ref} style={{ padding: "clamp(60px, 8vw, 80px) clamp(20px, 5vw, 60px)", position: "relative", zIndex: 1 }}>
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
-        {/* Header row */}
+
         <div className={`reveal ${visible ? "visible" : ""}`}
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 36, flexWrap: "wrap", gap: 16 }}>
           <div>
@@ -1239,7 +1464,7 @@ function CrowdIntelligence({ theme, activeThemeKey }) {
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            {/* Live badge */}
+
             <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(230,57,70,0.12)", border: "1px solid rgba(230,57,70,0.3)", borderRadius: 999, padding: "8px 16px" }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#e63946", animation: "pulse 1.5s infinite" }} />
               <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, fontWeight: 700, color: "#e63946" }}>LIVE UPDATES</span>
@@ -1248,11 +1473,11 @@ function CrowdIntelligence({ theme, activeThemeKey }) {
           </div>
         </div>
 
-        {/* Main grid */}
-        <div className={`reveal ${visible ? "visible" : ""}`}
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
 
-          {/* Live Wait Times */}
+        <div className={`reveal ${visible ? "visible" : ""}`}
+          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
+
+
           <GlassCard style={{ padding: 24 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1286,16 +1511,16 @@ function CrowdIntelligence({ theme, activeThemeKey }) {
             </div>
           </GlassCard>
 
-          {/* Right column */}
+
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-            {/* AI Recommendation */}
+
             <GlassCard style={{ padding: 24 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
                 <span style={{ fontSize: 20 }}>🤖</span>
                 <span style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: 18, color: theme.text }}>AI Recommendation</span>
               </div>
-              {/* Zone tabs */}
+
               <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
                 {aiZones.map((z, i) => (
                   <button key={z} onClick={() => { setAiTab(i); setAiResult(""); }}
@@ -1321,7 +1546,7 @@ function CrowdIntelligence({ theme, activeThemeKey }) {
               )}
             </GlassCard>
 
-            {/* Crowd Overview */}
+
             <GlassCard style={{ padding: 24 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
                 <span style={{ fontSize: 20 }}>⏱️</span>
@@ -1332,7 +1557,7 @@ function CrowdIntelligence({ theme, activeThemeKey }) {
                   <CircleGauge key={label} pct={crowdData[i]?.pct ?? 6} label={label} accent={theme.accent} />
                 ))}
               </div>
-              {/* Overall bar */}
+
               <div style={{ marginTop: 20, padding: "12px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, color: theme.muted }}>Overall Venue Capacity</span>
@@ -1357,7 +1582,6 @@ function CrowdIntelligence({ theme, activeThemeKey }) {
   );
 }
 
-// ─── FOOTER ──────────────────────────────────────────────────────────────────
 function Footer({ theme }) {
   return (
     <footer style={{ padding: "60px 60px 40px", position: "relative", zIndex: 1, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
@@ -1388,7 +1612,7 @@ function Footer({ theme }) {
           ))}
         </div>
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <p style={{ fontFamily: "'Cabinet Grotesk', sans-serif", color: theme.muted, fontSize: 13 }}>© 2026 NexEvent AI. Built for Google Antigravity Hackathon.</p>
+          <p style={{ fontFamily: "'Cabinet Grotesk', sans-serif", color: theme.muted, fontSize: 13 }}>© 2026 NexEvent AI</p>
           <div style={{ display: "flex", gap: 16 }}>
             {["Twitter", "LinkedIn", "GitHub"].map((s) => (
               <span key={s} style={{ fontFamily: "'Cabinet Grotesk', sans-serif", color: theme.muted, fontSize: 13, cursor: "pointer", transition: "color 0.2s" }}
@@ -1402,19 +1626,17 @@ function Footer({ theme }) {
   );
 }
 
-// ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
   const [activeThemeKey, setActiveThemeKey] = useState("home");
   const [authModal, setAuthModal] = useState(null);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getCurrentUser());
   const [explored, setExplored] = useState(false);
   const [instantReveal, setInstantReveal] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const theme = useMemo(() => THEMES[activeThemeKey] || THEMES.home, [activeThemeKey]);
 
-  // Section refs for scroll-to navigation
   const eventsRef = useRef(null);
-  const aiRef = useRef(null);
   const pricingRef = useRef(null);
   const aboutRef = useRef(null);
 
@@ -1424,6 +1646,12 @@ export default function App() {
     setUser(userData);
     setAuthModal(null);
     if (!explored) setExplored(true);
+  };
+
+  const handleLogout = () => {
+    logoutUser();
+    setUser(null);
+    setProfileOpen(false);
   };
 
   const handleNav = (v) => {
@@ -1443,7 +1671,7 @@ export default function App() {
     }
     if (!explored) setExplored(true);
     setTimeout(() => {
-      const map = { "ai-assistant": aiRef, pricing: pricingRef, about: aboutRef };
+      const map = { pricing: pricingRef, about: aboutRef };
       map[v]?.current?.scrollIntoView({ behavior: "smooth" });
     }, 300);
   };
@@ -1459,31 +1687,29 @@ export default function App() {
         onSignUp={() => setAuthModal("signup")}
         onNav={handleNav}
         user={user}
-        onLogout={() => setUser(null)}
+        onLogout={handleLogout}
+        onProfile={() => setProfileOpen(true)}
       />
 
-      {/* Main Content */}
       <main style={{ position: "relative", zIndex: 1 }}>
         {!explored ? (
-          // ── PRE-EXPLORE: About & Landing
           <>
             <LandingPage theme={theme} onExplore={() => handleNav("events")} onSignUp={() => setAuthModal("signup")} />
             <div ref={aboutRef}><AboutSection theme={theme} /></div>
 
-            {/* Google Services Banner */}
-            <section style={{ padding: "60px 60px", position: "relative", zIndex: 1 }}>
+            <section style={{ padding: "clamp(40px, 6vw, 60px) clamp(20px, 5vw, 60px)", position: "relative", zIndex: 1 }}>
               <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-                <GlassCard style={{ padding: "40px 48px", display: "flex", alignItems: "center", gap: 32, flexWrap: "wrap", border: `1px solid ${theme.accent}33` }}>
-                  <div style={{ flex: 1 }}>
+                <GlassCard style={{ padding: "clamp(24px, 4vw, 40px) clamp(20px, 4vw, 48px)", display: "flex", alignItems: "center", gap: 32, flexWrap: "wrap", border: `1px solid ${theme.accent}33` }}>
+                  <div style={{ flex: 1, minWidth: 240 }}>
                     <div className="theme-tag" style={{ marginBottom: 12 }}>Google Services</div>
-                    <h3 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: 28, color: theme.text, margin: "0 0 10px" }}>Powered by Google's Ecosystem</h3>
-                    <p style={{ fontFamily: "'Cabinet Grotesk', sans-serif", color: theme.muted, fontSize: 16, margin: 0, lineHeight: 1.6 }}>
-                      NexEvent AI deeply integrates with Google Maps for venue discovery, Google Calendar for scheduling, Google OAuth for secure sign-in, and Vertex AI for intelligent recommendations.
+                    <h3 style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, fontSize: "clamp(20px, 3vw, 28px)", color: theme.text, margin: "0 0 10px" }}>Powered by Google's Ecosystem</h3>
+                    <p style={{ fontFamily: "'Cabinet Grotesk', sans-serif", color: theme.muted, fontSize: 15, margin: 0, lineHeight: 1.6 }}>
+                      NexEvent AI integrates with Google Maps, Calendar, OAuth, Vertex AI, Places API, and Gemini.
                     </p>
                   </div>
-                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                     {["Maps API", "Calendar API", "OAuth 2.0", "Vertex AI", "Places API", "Gemini"].map((svc) => (
-                      <div key={svc} style={{ padding: "8px 16px", borderRadius: 999, background: `${theme.accent}15`, border: `1px solid ${theme.accent}33`, color: theme.accent, fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, fontWeight: 700 }}>{svc}</div>
+                      <div key={svc} style={{ padding: "7px 14px", borderRadius: 999, background: `${theme.accent}15`, border: `1px solid ${theme.accent}33`, color: theme.accent, fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, fontWeight: 700 }}>{svc}</div>
                     ))}
                   </div>
                 </GlassCard>
@@ -1493,35 +1719,17 @@ export default function App() {
             <div ref={pricingRef}><SubscriptionSection theme={theme} onSignUp={() => setAuthModal("signup")} /></div>
           </>
         ) : (
-          // ── POST-EXPLORE: Events & Full App
           <>
             <div style={{ height: 80 }} />
-            {/* Category theme switcher */}
-            <section style={{ padding: "20px 60px 0", position: "relative", zIndex: 1 }}>
-              <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontSize: 13, color: theme.muted, marginRight: 4 }}>VIBE:</span>
-                  {Object.entries(THEMES).map(([key, t]) => (
-                    <button key={key}
-                      onClick={() => handleThemeChange(key)}
-                      style={{ padding: "6px 16px", borderRadius: 999, border: `1px solid ${activeThemeKey === key ? t.accent : "rgba(255,255,255,0.1)"}`, background: activeThemeKey === key ? `${t.accent}22` : "transparent", color: activeThemeKey === key ? t.accent : theme.muted, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.25s" }}>
-                      {t.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </section>
-
             <div ref={eventsRef}>
-            <EventsSection
-              theme={theme}
-              activeTheme={activeThemeKey === "home" ? "movies" : activeThemeKey}
-              setActiveTheme={(t) => handleThemeChange(t)}
-              instant={instantReveal}
-            />
+              <EventsSection
+                theme={theme}
+                activeTheme={activeThemeKey === "home" ? "movies" : activeThemeKey}
+                setActiveTheme={(t) => handleThemeChange(t)}
+                instant={instantReveal}
+              />
             </div>
             <CrowdIntelligence theme={theme} activeThemeKey={activeThemeKey} />
-            <div ref={aiRef}><AISection theme={theme} user={user} /></div>
             <div ref={pricingRef}><SubscriptionSection theme={theme} onSignUp={() => setAuthModal("signup")} /></div>
             <div ref={aboutRef}><AboutSection theme={theme} /></div>
           </>
@@ -1530,7 +1738,6 @@ export default function App() {
 
       <Footer theme={theme} />
 
-      {/* Auth Modal */}
       {authModal && (
         <AuthModal
           theme={theme}
@@ -1541,8 +1748,21 @@ export default function App() {
         />
       )}
 
-      {/* AI Assistant floating chat */}
+      {profileOpen && user && (
+        <ProfileModal
+          theme={theme}
+          user={user}
+          onClose={() => setProfileOpen(false)}
+          onUpdate={(updated) => setUser(updated)}
+          onLogout={handleLogout}
+        />
+      )}
+
       <AIAssistant theme={theme} user={user} />
     </div>
   );
 }
+
+
+
+
