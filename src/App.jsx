@@ -864,7 +864,7 @@ function EventCard({ event, theme, onClick }) {
   );
 }
 
-function EventsSection({ theme, activeTheme, setActiveTheme, instant }) {
+function EventsSection({ theme, activeTheme, setActiveTheme, instant, apiEvents }) {
   const [ref, visible] = useScrollReveal();
   const show = instant || visible;
   const categories = [
@@ -874,7 +874,7 @@ function EventsSection({ theme, activeTheme, setActiveTheme, instant }) {
     { key: "tech", label: "💻 Tech", theme: "tech" },
     { key: "food", label: "🍜 Food", theme: "food" },
   ];
-  const events = EVENTS_DATA[activeTheme] || EVENTS_DATA.movies;
+  const events = apiEvents?.[activeTheme] || EVENTS_DATA[activeTheme] || EVENTS_DATA.movies;
 
   return (
     <section ref={ref} style={{ padding: "clamp(60px, 8vw, 100px) clamp(20px, 5vw, 60px)", position: "relative", zIndex: 1 }}>
@@ -1633,6 +1633,14 @@ export default function App() {
   const [explored, setExplored] = useState(false);
   const [instantReveal, setInstantReveal] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [apiEvents, setApiEvents] = useState(null);
+
+  useEffect(() => {
+    fetch('http://localhost:8080/api/events')
+      .then(res => res.json())
+      .then(data => setApiEvents(data))
+      .catch(err => console.error("API Fetch Error:", err));
+  }, []);
 
   const theme = useMemo(() => THEMES[activeThemeKey] || THEMES.home, [activeThemeKey]);
 
@@ -1727,9 +1735,10 @@ export default function App() {
                 activeTheme={activeThemeKey === "home" ? "movies" : activeThemeKey}
                 setActiveTheme={(t) => handleThemeChange(t)}
                 instant={instantReveal}
+                apiEvents={apiEvents}
               />
             </div>
-            <CrowdIntelligence theme={theme} activeThemeKey={activeThemeKey} />
+            <CrowdIntelligence data={apiEvents?.movies || EVENTS_DATA.movies} theme={theme} />
             <div ref={pricingRef}><SubscriptionSection theme={theme} onSignUp={() => setAuthModal("signup")} /></div>
             <div ref={aboutRef}><AboutSection theme={theme} /></div>
           </>
